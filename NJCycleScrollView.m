@@ -277,11 +277,11 @@
     NJCycleScrollReusableView *visiblePage = [self.dataSource scrollView:self viewAtPage:index];
     NSAssert([visiblePage isKindOfClass:[NJCycleScrollReusableView class]], @"page should be NJCycleScrollReusableView");
     visiblePage.autoresizingMask = UIViewAutoresizingFlexibleHeight;
-    WeakSelf
+    __weak typeof(self) weakSelf = self;
     [visiblePage setTouchedBlock:^(NJCycleScrollReusableView *cell) {
-        StrongSelf
-        if (strongSelf && [strongSelf.delegate respondsToSelector:@selector(scrollView:didSelectPage:)]) {
-            [strongSelf.delegate scrollView:strongSelf didSelectPage:index];
+        __strong typeof(weakSelf) sself = weakSelf;
+        if (sself && [sself.delegate respondsToSelector:@selector(scrollView:didSelectPage:)]) {
+            [sself.delegate scrollView:sself didSelectPage:index];
         }
     }];
     return visiblePage;
