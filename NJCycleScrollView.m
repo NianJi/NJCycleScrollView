@@ -484,7 +484,7 @@
 
 - (void)autoscrollTimerFired
 {
-    [self scrollToPage:_currentPage+1 < _numberOfPages-1 ? _currentPage + 1 : 0];
+    [self scrollToPage:_currentPage+1 <= _numberOfPages-1 ? _currentPage + 1 : 0];
 }
 
 @end
