@@ -1,6 +1,6 @@
 NJCycleScrollView
 =================
 
-可循环的scrollView
+# 可循环的scrollView
 
 

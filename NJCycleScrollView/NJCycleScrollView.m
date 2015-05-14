@@ -15,6 +15,7 @@
 @interface NJCycleScrollView ()
 {
     NSTimer     *_autoscrollTimer;
+    BOOL         _firstLoaded;
 }
 
 @end
@@ -26,7 +27,6 @@
 
 - (void)dealloc
 {
-    [self removeObserver:self forKeyPath:@"currentPage"];
     _scrollView.delegate = nil;
 }
 
@@ -57,11 +57,16 @@
     _autoscrollInterval = 5.;
     self.scrollView.frame = self.bounds;
     [self addSubview:self.scrollView];
+}
+
+- (void)layoutSubviews
+{
+    [super layoutSubviews];
     
-    [self addObserver:self
-           forKeyPath:@"currentPage"
-              options:NSKeyValueObservingOptionNew|NSKeyValueObservingOptionOld
-              context:NULL];
+    if (!_firstLoaded) {
+        _firstLoaded = YES;
+        [self reloadData];
+    }
 }
 
 - (void)didMoveToSuperview
@@ -93,13 +98,15 @@
     }
 }
 
-- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context
+- (void)setCurrentPage:(NSInteger)currentPage
 {
-    if ([keyPath isEqualToString:@"currentPage"])
-    {
+    if (_currentPage != currentPage) {
+        
+        NSInteger oldPage = _currentPage;
+        _currentPage = currentPage;
+        
         [self reloadData];
         
-        NSInteger oldPage = [[change objectForKey:NSKeyValueChangeOldKey] integerValue];
         if ([_delegate respondsToSelector:@selector(scrollView:didScrollFromPage:toPage:)])
         {
             [_delegate scrollView:self didScrollFromPage:oldPage toPage:self.currentPage];
@@ -123,6 +130,11 @@
         [self setUp];
     }
     return self;
+}
+
+- (void)awakeFromNib
+{
+    [self setUp];
 }
 
 - (NSInteger)numberOfPages
@@ -168,7 +180,7 @@
     
     if (self.scrollView.contentSize.width > self.scrollView.frame.size.width)
     {
-        [_scrollView setContentOffset:CGPointMake(self.scrollView.frame.size.width, 0)];
+        [_scrollView setContentOffset:CGPointMake(self.scrollView.frame.size.width, 0) animated:NO];
     }
 }
 
@@ -274,7 +286,13 @@
 
 - (UIView *)loadPageAtIndex:(NSInteger)index
 {
-    NJCycleScrollReusableView *visiblePage = [self.dataSource scrollView:self viewAtPage:index];
+    NJCycleScrollReusableView *visiblePage = nil;
+    if ([self.dataSource respondsToSelector:@selector(scrollView:viewAtPage:)]) {
+        visiblePage = [self.dataSource scrollView:self viewAtPage:index];
+    } else {
+        visiblePage = [[NJCycleScrollReusableView alloc] init];
+    }
+    
     NSAssert([visiblePage isKindOfClass:[NJCycleScrollReusableView class]], @"page should be NJCycleScrollReusableView");
     visiblePage.autoresizingMask = UIViewAutoresizingFlexibleHeight;
     __weak typeof(self) weakSelf = self;
@@ -308,11 +326,9 @@
         NSInteger pre = [self validPageValue:_currentPage-1];
         NSInteger last = [self validPageValue:_currentPage+1];
         
-        
         [_visiblePages addObject:[self loadPageAtIndex:pre]];
         [_visiblePages addObject:[self loadPageAtIndex:_currentPage]];
         [_visiblePages addObject:[self loadPageAtIndex:last]];
-        
     }
     
     return _visiblePages;
@@ -364,7 +380,7 @@
 
 - (void)scrollViewWillBeginDragging:(UIScrollView *)scrollView
 {
-    [self stopAutoscroll];
+    [self stopAutoscroll]; //手指滑动时暂停自动滑动
     if (self.delegate && [self.delegate respondsToSelector:@selector(scrollViewWillBeginDragging:)]) {
         [self.delegate scrollViewWillBeginDragging:scrollView];
     }
@@ -469,7 +485,7 @@
 
 - (void)startAutoscroll
 {
-    if (self.autoscroll && _numberOfPages > 1)
+    if (self.autoscroll)
     {
         [_autoscrollTimer invalidate];
         _autoscrollTimer = [NSTimer scheduledTimerWithTimeInterval:_autoscrollInterval target:self selector:@selector(autoscrollTimerFired) userInfo:nil repeats:YES];
@@ -484,7 +500,9 @@
 
 - (void)autoscrollTimerFired
 {
-    [self scrollToPage:_currentPage+1 <= _numberOfPages-1 ? _currentPage + 1 : 0];
+    if (_numberOfPages > 1) {
+        [self scrollToPage:_currentPage+1 <= _numberOfPages-1 ? _currentPage + 1 : 0];
+    }
 }
 
 @end
@@ -509,8 +527,8 @@
     if (touch)
     {
         CGPoint location = [touch locationInView:self];
-        if (location.x < self.width && location.x > 0 &&
-            location.y < self.height && location.y > 0)
+        if (location.x < CGRectGetWidth(self.frame) && location.x > 0 &&
+            location.y < CGRectGetHeight(self.frame) && location.y > 0)
         {
             if (_touchedBlock) {
                 _touchedBlock(self);
