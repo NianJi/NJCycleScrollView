@@ -489,6 +489,7 @@
     {
         [_autoscrollTimer invalidate];
         _autoscrollTimer = [NSTimer scheduledTimerWithTimeInterval:_autoscrollInterval target:self selector:@selector(autoscrollTimerFired) userInfo:nil repeats:YES];
+        [[NSRunLoop currentRunLoop] addTimer:_autoscrollTimer forMode:NSRunLoopCommonModes];
     }
 }
 
